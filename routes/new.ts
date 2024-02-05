@@ -10,10 +10,16 @@ const security = require('../lib/insecurity')
 const request = require('request')
 
 const allowedDomains = ['example.com', 'another-example.com']; // Add your allowed domains here
+const trustedHostnames = ['trusted-server.example.com', 'another-trusted-server.example.com']; // Add your trusted hostnames here
 
 function isAllowedDomain(url: string): boolean {
   const domain = new URL(url).hostname;
   return allowedDomains.includes(domain);
+}
+
+function isTrustedHostname(url: string): boolean {
+  const hostname = new URL(url).hostname;
+  return trustedHostnames.includes(hostname);
 }
 
 module.exports = function profileImageUrlUpload () {
@@ -23,6 +29,11 @@ module.exports = function profileImageUrlUpload () {
       if (!isAllowedDomain(url)) {
         logger.warn(`Invalid domain in URL: ${url}`)
         res.status(400).send('Invalid URL domain')
+        return
+      }
+      if (!isTrustedHostname(url)) {
+        logger.warn(`Untrusted hostname in URL: ${url}`)
+        res.status(400).send('Untrusted URL hostname')
         return
       }
       if (!validator.isURL(url)) {
