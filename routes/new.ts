@@ -9,10 +9,22 @@ import * as utils from '../lib/utils'
 const security = require('../lib/insecurity')
 const request = require('request')
 
+const allowedDomains = ['example.com', 'another-example.com']; // Add your allowed domains here
+
+function isAllowedDomain(url: string): boolean {
+  const domain = new URL(url).hostname;
+  return allowedDomains.includes(domain);
+}
+
 module.exports = function profileImageUrlUpload () {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
       const url = req.body.imageUrl
+      if (!isAllowedDomain(url)) {
+        logger.warn(`Invalid domain in URL: ${url}`)
+        res.status(400).send('Invalid URL domain')
+        return
+      }
       if (!validator.isURL(url)) {
         logger.warn(`Invalid URL provided for user profile image: ${url}`)
         res.status(400).send('Invalid URL')
