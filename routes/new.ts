@@ -1,6 +1,7 @@
 import fs = require('fs')
 import { type Request, type Response, type NextFunction } from 'express'
 import logger from '../lib/logger'
+import validator from 'validator'
 
 import { UserModel } from '../models/user'
 import * as utils from '../lib/utils'
@@ -11,6 +12,10 @@ module.exports = function profileImageUrlUpload () {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
       const url = req.body.imageUrl
+      if (!validator.isURL(url)) {
+        logger.warn(`Invalid URL provided for user profile image: ${url}`)
+        return
+      }
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
         const imageRequest = request
