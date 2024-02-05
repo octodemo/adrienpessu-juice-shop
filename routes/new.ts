@@ -2,6 +2,7 @@ import fs = require('fs')
 import { type Request, type Response, type NextFunction } from 'express'
 import logger from '../lib/logger'
 import validator from 'validator'
+import isPrivateIP from 'private-ip'
 
 import { UserModel } from '../models/user'
 import * as utils from '../lib/utils'
@@ -14,6 +15,18 @@ module.exports = function profileImageUrlUpload () {
       const url = req.body.imageUrl
       if (!validator.isURL(url)) {
         logger.warn(`Invalid URL provided for user profile image: ${url}`)
+        res.status(400).send('Invalid URL')
+        return
+      }
+      const parsedUrl = new URL(url)
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        logger.warn(`Invalid protocol in URL: ${url}`)
+        res.status(400).send('Invalid URL protocol')
+        return
+      }
+      if (isPrivateIP(parsedUrl.hostname)) {
+        logger.warn(`URL points to private IP: ${url}`)
+        res.status(400).send('URL cannot point to private IP')
         return
       }
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
