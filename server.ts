@@ -5,21 +5,10 @@
 import dataErasure from './routes/dataErasure'
 import fs = require('fs')
 import { type Request, type Response, type NextFunction } from 'express'
-import { sequelize } from './models'
-import { UserModel } from './models/user'
-import { QuantityModel } from './models/quantity'
 import { CardModel } from './models/card'
-import { PrivacyRequestModel } from './models/privacyRequests'
 import { AddressModel } from './models/address'
-import { SecurityAnswerModel } from './models/securityAnswer'
-import { SecurityQuestionModel } from './models/securityQuestion'
-import { RecycleModel } from './models/recycle'
-import { ComplaintModel } from './models/complaint'
 import { ChallengeModel } from './models/challenge'
 import { BasketItemModel } from './models/basketitem'
-import { FeedbackModel } from './models/feedback'
-import { ProductModel } from './models/product'
-import { WalletModel } from './models/wallet'
 import logger from './lib/logger'
 import config from 'config'
 import path from 'path'
@@ -436,24 +425,12 @@ restoreOverwrittenFilesWithOriginals().then(() => {
   /* Verifying DB related challenges can be postponed until the next request for challenges is coming via finale */
   app.use(verify.databaseRelatedChallenges())
 
-  // vuln-code-snippet start registerAdminChallenge
-  /* Generated API endpoints */
-  finale.initialize({ app, sequelize })
 
   const autoModels = [
-    { name: 'User', exclude: ['password', 'totpSecret'], model: UserModel },
-    { name: 'Product', exclude: [], model: ProductModel },
-    { name: 'Feedback', exclude: [], model: FeedbackModel },
     { name: 'BasketItem', exclude: [], model: BasketItemModel },
     { name: 'Challenge', exclude: [], model: ChallengeModel },
-    { name: 'Complaint', exclude: [], model: ComplaintModel },
-    { name: 'Recycle', exclude: [], model: RecycleModel },
-    { name: 'SecurityQuestion', exclude: [], model: SecurityQuestionModel },
-    { name: 'SecurityAnswer', exclude: [], model: SecurityAnswerModel },
     { name: 'Address', exclude: [], model: AddressModel },
-    { name: 'PrivacyRequest', exclude: [], model: PrivacyRequestModel },
     { name: 'Card', exclude: [], model: CardModel },
-    { name: 'Quantity', exclude: [], model: QuantityModel }
   ]
 
   for (const { name, exclude, model } of autoModels) {
@@ -463,17 +440,6 @@ restoreOverwrittenFilesWithOriginals().then(() => {
       excludeAttributes: exclude,
       pagination: false
     })
-
-    // create a wallet when a new user is registered using API
-    if (name === 'User') { // vuln-code-snippet neutral-line registerAdminChallenge
-      resource.create.send.before((req: Request, res: Response, context: { instance: { id: any }, continue: any }) => { // vuln-code-snippet vuln-line registerAdminChallenge
-        WalletModel.create({ UserId: context.instance.id }).catch((err: unknown) => {
-          console.log(err)
-        })
-        return context.continue // vuln-code-snippet neutral-line registerAdminChallenge
-      }) // vuln-code-snippet neutral-line registerAdminChallenge
-    } // vuln-code-snippet neutral-line registerAdminChallenge
-    // vuln-code-snippet end registerAdminChallenge
 
     // translate challenge descriptions and hints on-the-fly
     if (name === 'Challenge') {
@@ -660,12 +626,6 @@ const uploadToDisk = multer({
   })
 })
 
-const expectedModels = ['Address', 'Basket', 'BasketItem', 'Captcha', 'Card', 'Challenge', 'Complaint', 'Delivery', 'Feedback', 'ImageCaptcha', 'Memory', 'PrivacyRequestModel', 'Product', 'Quantity', 'Recycle', 'SecurityAnswer', 'SecurityQuestion', 'User', 'Wallet']
-while (!expectedModels.every(model => Object.keys(sequelize.models).includes(model))) {
-  logger.info(`Entity models ${colors.bold(Object.keys(sequelize.models).length.toString())} of ${colors.bold(expectedModels.length.toString())} are initialized (${colors.yellow('WAITING')})`)
-}
-logger.info(`Entity models ${colors.bold(Object.keys(sequelize.models).length.toString())} of ${colors.bold(expectedModels.length.toString())} are initialized (${colors.green('OK')})`)
-
 // vuln-code-snippet start exposedMetricsChallenge
 /* Serve metrics */
 let metricsUpdateLoop: any
@@ -679,7 +639,6 @@ const customizeApplication = require('./lib/startup/customizeApplication')
 
 export async function start (readyCallback: any) {
   const datacreatorEnd = startupGauge.startTimer({ task: 'datacreator' })
-  await sequelize.sync({ force: true })
   await datacreator()
   datacreatorEnd()
   const port = process.env.PORT ?? config.get('server.port')
