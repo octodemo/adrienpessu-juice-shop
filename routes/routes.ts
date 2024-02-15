@@ -21,8 +21,8 @@ app.get("/", function(req, res){
     const search = req.params.q
 
     if (search != "") {
-        var squery = "SELECT * FROM users WHERE name = \"" + search + "\""
-        pool.query(squery, (err, res) => {
+        var squery = "SELECT * FROM users WHERE name = $1"
+        pool.query(squery, [search], (err, res) => {
             console.log(err, res)
             pool.end()
         })
