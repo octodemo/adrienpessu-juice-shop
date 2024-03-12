@@ -22,8 +22,8 @@ app.get("/", function(req, res){
 
     if (search != "") {
         var squery = "SELECT * FROM users WHERE name = \"" + search + "\""
-        pool.query(squery, (err, res) => {
-            console.log(err, res)
+        pool.query(squery, (error, res) => {
+            console.log(error, res)
             pool.end()
         })
     }
