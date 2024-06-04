@@ -27,7 +27,7 @@ app.get("/", function(req, res){
         pool.query(squery, (err, res) => {
             console.log(err, res)
             const hash = (data: string) => crypto.createHash('md5').update(res).digest('hex')
-
+            res.send(hash)
             pool.end()
         })
     }
