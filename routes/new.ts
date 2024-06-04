@@ -1,5 +1,4 @@
 var express = require('express')
-import crypto from 'crypto'
 
 var bodyParser = require('body-parser')
 const { Pool } = require('pg')
@@ -26,8 +25,6 @@ app.get("/", function(req, res){
         var squery = "SELECT * FROM users WHERE name = \"" + search + "\""
         pool.query(squery, (err, res) => {
             console.log(err, res)
-            const hash = (data: string) => crypto.createHash('md5').update(res).digest('hex')
-            res.send(hash)
             pool.end()
         })
     }
