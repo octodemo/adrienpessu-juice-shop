@@ -1,5 +1,6 @@
 var express = require('express')
-var crypto = require('crypto')
+import crypto from 'crypto'
+
 var bodyParser = require('body-parser')
 const { Pool } = require('pg')
 
