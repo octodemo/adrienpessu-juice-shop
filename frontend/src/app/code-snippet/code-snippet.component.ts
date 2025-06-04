@@ -1,19 +1,31 @@
 /*
- * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2025 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
 import { CodeSnippetService, type CodeSnippet } from '../Services/code-snippet.service'
-import { CodeFixesService, type Fixes } from '../Services/code-fixes.service'
-import { CookieService } from 'ngx-cookie'
+import { CodeFixesService } from '../Services/code-fixes.service'
+import { CookieService } from 'ngy-cookie'
 import { ChallengeService } from '../Services/challenge.service'
 import { VulnLinesService, type result } from '../Services/vuln-lines.service'
 import { Component, Inject, type OnInit } from '@angular/core'
 
-import { MAT_DIALOG_DATA } from '@angular/material/dialog'
-import { UntypedFormControl } from '@angular/forms'
+import { MAT_DIALOG_DATA, MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog'
+import { UntypedFormControl, FormsModule } from '@angular/forms'
 import { ConfigurationService } from '../Services/configuration.service'
 import { type ThemePalette } from '@angular/material/core'
+import { MatIconButton, MatButtonModule } from '@angular/material/button'
+import { MatInputModule } from '@angular/material/input'
+import { MatFormFieldModule, MatLabel } from '@angular/material/form-field'
+import { ExtendedModule } from '@angular/flex-layout/extended'
+import { MatCardModule } from '@angular/material/card'
+import { CodeFixesComponent } from '../code-fixes/code-fixes.component'
+import { MatIconModule } from '@angular/material/icon'
+import { TranslateModule } from '@ngx-translate/core'
+import { CodeAreaComponent } from '../code-area/code-area.component'
+import { NgIf, NgFor } from '@angular/common'
+import { FlexModule } from '@angular/flex-layout/flex'
+import { MatTabGroup, MatTab, MatTabLabel } from '@angular/material/tabs'
 
 enum ResultState {
   Undecided,
@@ -26,16 +38,23 @@ export interface Solved {
   fixIt: boolean
 }
 
+export interface RandomFixes {
+  fix: string
+  index: number
+}
+
 @Component({
   selector: 'code-snippet',
   templateUrl: './code-snippet.component.html',
-  styleUrls: ['./code-snippet.component.scss']
+  styleUrls: ['./code-snippet.component.scss'],
+  host: { class: 'code-snippet' },
+  imports: [MatDialogTitle, MatDialogContent, MatTabGroup, MatTab, FlexModule, NgIf, CodeAreaComponent, TranslateModule, MatTabLabel, MatIconModule, CodeFixesComponent, MatDialogActions, MatCardModule, ExtendedModule, MatFormFieldModule, MatLabel, MatInputModule, NgFor, FormsModule, MatIconButton, MatButtonModule, MatDialogClose]
 })
 export class CodeSnippetComponent implements OnInit {
   public snippet: CodeSnippet = null
-  public fixes: Fixes = null
+  public fixes: string [] = null
   public selectedLines: number[]
-  public selectedFix: number
+  public selectedFix: number = 0
   public tab: UntypedFormControl = new UntypedFormControl(0)
   public lock: ResultState = ResultState.Undecided
   public result: ResultState = ResultState.Undecided
@@ -43,10 +62,11 @@ export class CodeSnippetComponent implements OnInit {
   public explanation: string = null
   public solved: Solved = { findIt: false, fixIt: false }
   public showFeedbackButtons: boolean = true
+  public randomFixes: RandomFixes[] = []
 
   constructor (@Inject(MAT_DIALOG_DATA) public dialogData: any, private readonly configurationService: ConfigurationService, private readonly codeSnippetService: CodeSnippetService, private readonly vulnLinesService: VulnLinesService, private readonly codeFixesService: CodeFixesService, private readonly challengeService: ChallengeService, private readonly cookieService: CookieService) { }
 
-  ngOnInit () {
+  ngOnInit (): void {
     this.configurationService.getApplicationConfiguration().subscribe((config) => {
       this.showFeedbackButtons = config.challenges.showFeedbackButtons
     }, (err) => { console.log(err) })
@@ -64,6 +84,9 @@ export class CodeSnippetComponent implements OnInit {
     })
     this.codeFixesService.get(this.dialogData.key).subscribe((fixes) => {
       this.fixes = fixes.fixes
+      if (this.fixes) {
+        this.shuffle()
+      }
       this.solved.fixIt = this.dialogData.codingChallengeStatus >= 2
     }, () => {
       this.fixes = null
@@ -79,6 +102,10 @@ export class CodeSnippetComponent implements OnInit {
     this.explanation = null
   }
 
+  changeFix (event: Event) {
+    this.setFix(parseInt((event.target as HTMLSelectElement).value, 10))
+  }
+
   toggleTab = (event: number) => {
     this.tab.setValue(event)
     this.result = ResultState.Undecided
@@ -91,7 +118,7 @@ export class CodeSnippetComponent implements OnInit {
   }
 
   checkFix = () => {
-    this.codeFixesService.check(this.dialogData.key, this.selectedFix).subscribe((verdict) => {
+    this.codeFixesService.check(this.dialogData.key, this.randomFixes[this.selectedFix].index).subscribe((verdict) => {
       this.setVerdict(verdict.verdict)
       this.explanation = verdict.explanation
     })
@@ -125,6 +152,13 @@ export class CodeSnippetComponent implements OnInit {
       case 'lock':
         return 'warn'
     }
+  }
+
+  shuffle () {
+    this.randomFixes = this.fixes
+      .map((fix, index) => ({ fix, index, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ fix, index }) => ({ fix, index }))
   }
 
   setVerdict = (verdict: boolean) => {

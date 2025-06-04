@@ -1,22 +1,24 @@
 /*
- * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2025 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
 import { TranslateModule } from '@ngx-translate/core'
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog'
-import { HttpClientTestingModule } from '@angular/common/http/testing'
+import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { MatDividerModule } from '@angular/material/divider'
 import { type ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing'
 
 import { CodeSnippetComponent } from './code-snippet.component'
 import { CodeSnippetService } from '../Services/code-snippet.service'
-import { CookieModule, CookieService } from 'ngx-cookie'
+import { CookieModule, CookieService } from 'ngy-cookie'
 import { ConfigurationService } from '../Services/configuration.service'
 import { of, throwError } from 'rxjs'
 import { CodeFixesService } from '../Services/code-fixes.service'
 import { VulnLinesService } from '../Services/vuln-lines.service'
 import { ChallengeService } from '../Services/challenge.service'
+import { NoopAnimationsModule } from '@angular/platform-browser/animations'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 
 describe('CodeSnippetComponent', () => {
   let component: CodeSnippetComponent
@@ -31,7 +33,7 @@ describe('CodeSnippetComponent', () => {
   beforeEach(waitForAsync(() => {
     configurationService = jasmine.createSpyObj('ConfigurationService', ['getApplicationConfiguration'])
     configurationService.getApplicationConfiguration.and.returnValue(of({ application: {}, challenges: {} }))
-    cookieService = jasmine.createSpyObj('CookieService', ['put'])
+    cookieService = jasmine.createSpyObj('CookieService', ['put', 'hasKey'])
     codeSnippetService = jasmine.createSpyObj('CodeSnippetService', ['get', 'check'])
     codeSnippetService.get.and.returnValue(of({}))
     codeFixesService = jasmine.createSpyObj('CodeFixesService', ['get', 'check'])
@@ -42,14 +44,12 @@ describe('CodeSnippetComponent', () => {
     challengeService.continueCodeFixIt.and.returnValue(of('continueCodeFixIt'))
 
     TestBed.configureTestingModule({
-      imports: [
+      imports: [NoopAnimationsModule,
         CookieModule.forRoot(),
         TranslateModule.forRoot(),
-        HttpClientTestingModule,
         MatDividerModule,
-        MatDialogModule
-      ],
-      declarations: [CodeSnippetComponent],
+        MatDialogModule,
+        CodeSnippetComponent],
       providers: [
         { provide: MatDialogRef, useValue: {} },
         { provide: MAT_DIALOG_DATA, useValue: { dialogData: {} } },
@@ -58,7 +58,9 @@ describe('CodeSnippetComponent', () => {
         { provide: CodeSnippetService, useValue: codeSnippetService },
         { provide: CodeFixesService, useValue: codeFixesService },
         { provide: VulnLinesService, useValue: vulnLinesService },
-        { provide: ChallengeService, useValue: challengeService }
+        { provide: ChallengeService, useValue: challengeService },
+        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClientTesting()
       ]
     })
       .compileComponents()
@@ -139,21 +141,21 @@ describe('CodeSnippetComponent', () => {
   })
 
   it('lock icon is red and "locked" by default', () => {
-    component.fixes = { fixes: ['Fix1', 'Fix2', 'Fix3'] }
+    component.fixes = ['Fix1', 'Fix2', 'Fix3']
     component.lock = 0
     expect(component.lockIcon()).toBe('lock')
     expect(component.lockColor()).toBe('warn')
   })
 
   it('lock icon is red and "locked" when "Find It" phase is unsolved', () => {
-    component.fixes = { fixes: ['Fix1', 'Fix2', 'Fix3'] }
+    component.fixes = ['Fix1', 'Fix2', 'Fix3']
     component.lock = 2
     expect(component.lockIcon()).toBe('lock')
     expect(component.lockColor()).toBe('warn')
   })
 
   it('lock icon is green and "lock_open" when "Find It" phase is in solved', () => {
-    component.fixes = { fixes: ['Fix1', 'Fix2', 'Fix3'] }
+    component.fixes = ['Fix1', 'Fix2', 'Fix3']
     component.lock = 1
     expect(component.lockIcon()).toBe('lock_open')
     expect(component.lockColor()).toBe('accent')
@@ -185,7 +187,7 @@ describe('CodeSnippetComponent', () => {
 
   xit('correctly submitted vulnerable lines toggle tab to "Fix It" if code fixes exist', waitForAsync(() => {
     component.tab.setValue(0)
-    component.fixes = { fixes: ['Fix1', 'Fix2', 'Fix3'] }
+    component.fixes = ['Fix1', 'Fix2', 'Fix3']
     vulnLinesService.check.and.returnValue(of({ verdict: true }))
     component.checkLines()
     expect(component.tab.value).toBe(1)
@@ -193,8 +195,17 @@ describe('CodeSnippetComponent', () => {
 
   it('correctly submitted fix toggles positive verdict for "Fix It" phase', () => {
     component.tab.setValue(1)
+    component.randomFixes = [{ fix: 'Fix 1', index: 0 }]
     codeFixesService.check.and.returnValue(of({ verdict: true }))
     component.checkFix()
     expect(component.solved.fixIt).toBeTrue()
+  })
+
+  it('should remember the original order of available code fix options when shuffling', () => {
+    component.fixes = ['Fix 1', 'Fix 2', 'Fix 3']
+    component.shuffle()
+    expect(component.randomFixes).toContain({ fix: 'Fix 1', index: 0 })
+    expect(component.randomFixes).toContain({ fix: 'Fix 2', index: 1 })
+    expect(component.randomFixes).toContain({ fix: 'Fix 3', index: 2 })
   })
 })
