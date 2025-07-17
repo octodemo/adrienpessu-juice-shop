@@ -17,11 +17,22 @@ export function profileImageUrlUpload () {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
       const url = req.body.imageUrl
+      const trustedDomains = ['example.com', 'trusted.com'] // Add trusted domains here
+      let parsedUrl
+      try {
+        parsedUrl = new URL(url)
+        if (!trustedDomains.includes(parsedUrl.hostname)) {
+          throw new Error('URL hostname is not in the allow-list of trusted domains')
+        }
+      } catch (error) {
+        next(new Error('Invalid or untrusted URL provided'))
+        return
+      }
       if (url.match(/(.)*solve\/challenges\/server-side(.)*/) !== null) req.app.locals.abused_ssrf_bug = true
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
         try {
-          const response = await fetch(url)
+          const response = await fetch(parsedUrl.toString())
           if (!response.ok || !response.body) {
             throw new Error('url returned a non-OK status code or an empty body')
           }
